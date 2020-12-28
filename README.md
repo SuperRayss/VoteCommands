@@ -7,3 +7,5 @@ There are two different types of votes, one to restart the run, and another to k
 *Start a vote to kick a player: votekick / vote_kick [name / number]*
 
 *Start a vote to restart the run: voterestart / vote_restart*
+
+Disclaimer: Some documentation refers to a command that exist from another mod I've created which isn't public yet. I'll be making that one public in a bit.
