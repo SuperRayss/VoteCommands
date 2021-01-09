@@ -1,18 +1,18 @@
 ﻿using System;
+using System.Linq;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Networking;
 using BepInEx;
 using RoR2;
-using UnityEngine.Networking;
 using R2API.Utils;
-using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
-using System.Collections;
 
 namespace VoteCommands
 {
     [BepInDependency("com.bepis.r2api")]
     [NetworkCompatibility(CompatibilityLevel.NoNeedForSync)]
-    [BepInPlugin("com.Rayss.VoteKick", "VoteCommands", "1.0.0")]
+    [BepInPlugin("com.Rayss.VoteKick", "VoteCommands", "1.1.0")]
     public class VoteCommands : BaseUnityPlugin
     {
 
@@ -58,7 +58,7 @@ namespace VoteCommands
                     var kickUser = string.Join(" ", userInput.Skip(1));
                     if (kickUser == "")
                     {
-                        ChatMessage.SendColored("Gotta input a player name or number.", "#f01d1d");
+                        ChatMessage.SendColored("Gotta input a player name or number.", "#f01d1d");  // TODO: Add mention of "players" command once HelpCmd is public
                         return;
                     }
                     var kickUserNetworkUser = GetNetworkUserFromName(kickUser);
@@ -110,14 +110,16 @@ namespace VoteCommands
         {
             var kickUserSteamId = kickUserNetworkUser.id.steamId.value;
             KickedPlayerSteamIds.Add(kickUserSteamId);  // Replaces AddIdToKickListSteam(), reducing repeat code
-            ChatMessage.SendColored("Vote to kick " + kickUserNetworkUser.userName + " has begun. In the next 30 seconds, Type 'Y' to vote to kick.", "#f01d1d");
+            ChatMessage.SendColored("Vote to kick " + kickUserNetworkUser.userName + " has begun. In the next 45 seconds, Type 'Y' to vote to kick.", "#f01d1d");
             CountUserVote(sender.networkUser);
-            int playerCount = NetworkUser.readOnlyInstancesList.Count;
+            int playerCount = NetworkUser.readOnlyInstancesList.Count;  // TODO: Look into changing for participating players only?
             _voteInProgress = true;
+            yield return new WaitForSeconds(15f);
+            ChatMessage.SendColored("30 seconds remaining in vote to kick " + kickUserNetworkUser.userName + ".", "#f01d1d");
             yield return new WaitForSeconds(20f);
             ChatMessage.SendColored("10 seconds remaining in vote to kick " + kickUserNetworkUser.userName + ".", "#f01d1d");
             yield return new WaitForSeconds(10f);
-            if (VotedForPlayers.Count >= (playerCount * 0.66f))
+            if (VotedForPlayers.Count > (int)(playerCount * 0.51f))
             {
                 ChatMessage.SendColored("Vote to kick " + kickUserNetworkUser.userName + " has passed. Bye bye.", "#f01d1d");
 #if DEBUG
@@ -145,21 +147,23 @@ namespace VoteCommands
                 ChatMessage.SendColored("You can't start a vote to restart a run when there is no run to restart, silly goose.", "#f01d1d");
                 yield break;
             }
-            ChatMessage.SendColored("Vote to restart the run has begun. In the next 30 seconds, Type 'Y' to vote to restart.", "#f01d1d");
+            ChatMessage.SendColored("Vote to restart the run has begun. In the next 45 seconds, Type 'Y' to vote to restart.", "#f01d1d");
             CountUserVote(sender.networkUser);
             int playerCount = NetworkUser.readOnlyInstancesList.Count;
             _voteInProgress = true;
+            yield return new WaitForSeconds(15f);
+            ChatMessage.SendColored("30 seconds remaining in vote to restart.", "#f01d1d");
             yield return new WaitForSeconds(20f);
             ChatMessage.SendColored("10 seconds remaining in vote to restart.", "#f01d1d");
             yield return new WaitForSeconds(10f);
-            if (VotedForPlayers.Count >= (playerCount * 0.66f))
+            if (VotedForPlayers.Count > (int)(playerCount * 0.51f))
             {
                 ChatMessage.SendColored("Vote to restart has passed. Heading to lobby now.", "#f01d1d");
 #if DEBUG
                 Debug.Log("DEBUG_VOTERESTART: Vote to restart has passed.");  // DEBUG
 #endif
                 yield return new WaitForSeconds(3f);
-                RoR2.Console.instance.SubmitCmd(new RoR2.Console.CmdSender(), "run_end");
+                RoR2.Console.instance.SubmitCmd(new RoR2.Console.CmdSender(), "run_end");  // TODO: Consider changing to ending the run normally, so everyone can see the endgame screen
             }
             else
             {
@@ -193,7 +197,7 @@ namespace VoteCommands
         {
             // Something to keep in mind, if someone sets their name to a number, someone needs to still use their player number rather than their name if they want to kick them,
             // i.e. if you want to kick "Risk of Rayss 2", who is player 5, using "votekick 2" will start a vote to kick whoever is player 2, so instead use "votekick 5"
-            if (int.TryParse(userName, out int result)) 
+            if (int.TryParse(userName, out int result))
             {
                 if (result <= NetworkUser.readOnlyInstancesList.Count && result >= 1)  // Done since it assumes players are going on normal list values, not index
                 {
@@ -211,7 +215,7 @@ namespace VoteCommands
                         return n;
                     }
                 }
-                ChatMessage.SendColored("Could not find any players containing the name '" + userName + "'. Find their player number using the 'players' command and enter that instead", "#f01d1d");
+                ChatMessage.SendColored("Could not find any players containing the name '" + userName + "'. Find their player number using the 'players' command and enter that instead", "#f01d1d");  // TODO: "players" command requires HelpCmd
                 return null;
             }
         }
