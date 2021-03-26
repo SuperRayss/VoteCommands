@@ -12,7 +12,7 @@ namespace VoteCommands
 {
     [BepInDependency("com.bepis.r2api")]
     [NetworkCompatibility(CompatibilityLevel.NoNeedForSync)]
-    [BepInPlugin("com.Rayss.VoteKick", "VoteCommands", "1.1.0")]
+    [BepInPlugin("com.Rayss.VoteKick", "VoteCommands", "1.2.0")]
     public class VoteCommands : BaseUnityPlugin
     {
 
@@ -52,13 +52,19 @@ namespace VoteCommands
                 {
                     if (_voteInProgress)
                     {
-                        ChatMessage.SendColored("Hold your horses. There's already a vote in progress.", "#f01d1d");
+                        Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                        {
+                            baseToken = "<color=red>Hold your horses. There's already a vote in progress.</color>"
+                        });
                         return;
                     }
                     var kickUser = string.Join(" ", userInput.Skip(1));
                     if (kickUser == "")
                     {
-                        ChatMessage.SendColored("Gotta input a player name or number.", "#f01d1d");  // TODO: Add mention of "players" command once HelpCmd is public
+                        Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                        {
+                            baseToken = "<color=red>Gotta input a player name or number.</color>"
+                        });
                         return;
                     }
                     var kickUserNetworkUser = GetNetworkUserFromName(kickUser);
@@ -69,7 +75,10 @@ namespace VoteCommands
                 {
                     if (_voteInProgress)
                     {
-                        ChatMessage.SendColored("Hold your horses. There's already a vote in progress.", "#f01d1d");
+                        Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                        {
+                            baseToken = "<color=red>Hold your horses. There's already a vote in progress.</color>"
+                        });
                         return;
                     }
                     StartCoroutine(WaitForVotesRestart(sender));
@@ -110,18 +119,30 @@ namespace VoteCommands
         {
             var kickUserSteamId = kickUserNetworkUser.id.steamId.value;
             KickedPlayerSteamIds.Add(kickUserSteamId);  // Replaces AddIdToKickListSteam(), reducing repeat code
-            ChatMessage.SendColored("Vote to kick " + kickUserNetworkUser.userName + " has begun. In the next 45 seconds, Type 'Y' to vote to kick.", "#f01d1d");
+            Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+            {
+                baseToken = "<color=red>Vote to kick " + kickUserNetworkUser.userName + " has begun. In the next 45 seconds, Type 'Y' to vote to kick.</color>"
+            });
             CountUserVote(sender.networkUser);
             int playerCount = NetworkUser.readOnlyInstancesList.Count;  // TODO: Look into changing for participating players only?
             _voteInProgress = true;
             yield return new WaitForSeconds(15f);
-            ChatMessage.SendColored("30 seconds remaining in vote to kick " + kickUserNetworkUser.userName + ".", "#f01d1d");
+            Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+            {
+                baseToken = "<color=red>30 seconds remaining in vote to kick " + kickUserNetworkUser.userName + ".</color>"
+            });
             yield return new WaitForSeconds(20f);
-            ChatMessage.SendColored("10 seconds remaining in vote to kick " + kickUserNetworkUser.userName + ".", "#f01d1d");
+            Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+            {
+                baseToken = "<color=red>10 seconds remaining in vote to kick " + kickUserNetworkUser.userName + ".</color>"
+            });
             yield return new WaitForSeconds(10f);
             if (VotedForPlayers.Count > (int)(playerCount * 0.51f))
             {
-                ChatMessage.SendColored("Vote to kick " + kickUserNetworkUser.userName + " has passed. Bye bye.", "#f01d1d");
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>Vote to kick " + kickUserNetworkUser.userName + " has passed. Bye bye.</color>"
+                });
 #if DEBUG
                 Debug.Log("DEBUG_VOTEKICK: Vote to kick " + kickUserNetworkUser.userName + " has passed.");  // DEBUG
 #endif
@@ -129,7 +150,10 @@ namespace VoteCommands
             }
             else
             {
-                ChatMessage.SendColored("Vote to kick " + kickUserNetworkUser.userName + " has failed.", "#f01d1d");
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>Vote to kick " + kickUserNetworkUser.userName + " has failed.</color>"
+                });
 #if DEBUG
                 Debug.Log("DEBUG_VOTEKICK: Vote to kick " + kickUserNetworkUser.userName + " has failed.");  // DEBUG
 #endif
@@ -144,21 +168,36 @@ namespace VoteCommands
         {
             if (!Run.instance)
             {
-                ChatMessage.SendColored("You can't start a vote to restart a run when there is no run to restart, silly goose.", "#f01d1d");
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>You can't start a vote to restart a run when there is no run to restart, silly goose.</color>"
+                });
                 yield break;
             }
-            ChatMessage.SendColored("Vote to restart the run has begun. In the next 45 seconds, Type 'Y' to vote to restart.", "#f01d1d");
+            Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+            {
+                baseToken = "<color=red>Vote to restart the run has begun. In the next 45 seconds, Type 'Y' to vote to restart.</color>"
+            });
             CountUserVote(sender.networkUser);
             int playerCount = NetworkUser.readOnlyInstancesList.Count;
             _voteInProgress = true;
             yield return new WaitForSeconds(15f);
-            ChatMessage.SendColored("30 seconds remaining in vote to restart.", "#f01d1d");
+            Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+            {
+                baseToken = "<color=red>30 seconds remaining in vote to restart.</color>"
+            });
             yield return new WaitForSeconds(20f);
-            ChatMessage.SendColored("10 seconds remaining in vote to restart.", "#f01d1d");
+            Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+            {
+                baseToken = "<color=red>10 seconds remaining in vote to restart.</color>"
+            });
             yield return new WaitForSeconds(10f);
             if (VotedForPlayers.Count > (int)(playerCount * 0.51f))
             {
-                ChatMessage.SendColored("Vote to restart has passed. Heading to lobby now.", "#f01d1d");
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>Vote to restart has passed. Heading to lobby now.</color>"
+                });
 #if DEBUG
                 Debug.Log("DEBUG_VOTERESTART: Vote to restart has passed.");  // DEBUG
 #endif
@@ -167,7 +206,10 @@ namespace VoteCommands
             }
             else
             {
-                ChatMessage.SendColored("Vote to restart has failed.", "#f01d1d");
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>Vote to restart has failed.</color>"
+                });
 #if DEBUG
                 Debug.Log("DEBUG_VOTERESTART: Vote to restart has failed.");  // DEBUG
 #endif
@@ -183,11 +225,17 @@ namespace VoteCommands
             VotedForPlayers.Add(network_id);
             if (VotedForPlayers.Count == 1)
             {
-                ChatMessage.SendColored("1 vote", "#f01d1d");
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>1 vote</color>"
+                });
             }
             else
             {
-                ChatMessage.SendColored(VotedForPlayers.Count.ToString() + " votes", "#f01d1d");
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>" + VotedForPlayers.Count.ToString() + " votes</color>"
+                });
             }
 
         }
@@ -203,7 +251,10 @@ namespace VoteCommands
                 {
                     return NetworkUser.readOnlyInstancesList[result - 1];  // See above
                 }
-                ChatMessage.SendColored("Could not find the player number " + userName + ". Try using their player name instead", "#f01d1d");
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>Could not find the player number " + userName + ". Try using their player name instead</color>"
+                });
                 return null;
             }
             else
@@ -215,7 +266,10 @@ namespace VoteCommands
                         return n;
                     }
                 }
-                ChatMessage.SendColored("Could not find any players containing the name '" + userName + "'. Find their player number using the 'players' command and enter that instead", "#f01d1d");  // TODO: "players" command requires HelpCmd
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>Could not find any players containing the name '" + userName + "'. Find their player number using the 'players' command and enter that instead</color>"
+                });
                 return null;
             }
         }
