@@ -7,22 +7,38 @@ using UnityEngine.Networking;
 using BepInEx;
 using RoR2;
 using R2API.Utils;
+using UnityEngine.SceneManagement;
+using BepInEx.Configuration;
 
 namespace VoteCommands
 {
     [BepInDependency("com.bepis.r2api")]
     [NetworkCompatibility(CompatibilityLevel.NoNeedForSync)]
-    [BepInPlugin("com.Rayss.VoteKick", "VoteCommands", "1.2.0")]
+    [BepInPlugin("com.Rayss.VoteCommands", "VoteCommands", "1.4.0")]
     public class VoteCommands : BaseUnityPlugin
     {
+        // Config
+        private static ConfigEntry<string> Banlist { get; set; }
+        public static string _banList;
 
-        public bool _voteInProgress = false;
-        public List<NetworkUserId> VotedForPlayers { get; set; } = new List<NetworkUserId>();  // Count players that voted to kick
-        public List<ulong> KickedPlayerSteamIds { get; set; } = new List<ulong>();
+        private static bool _voteInProgress = false;
+        private static List<NetworkUserId> VotedForPlayers { get; set; } = new List<NetworkUserId>();  // Count players that voted to kick
+        private static List<ulong> KickedPlayerSteamIds { get; set; } = new List<ulong>();
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members")]
         public void Awake()
         {
+            Banlist = Config.Bind<string>(
+                "Config",
+                "Ban List",
+                "",
+                "Enter a list of Steam IDs (STEAMID64), separated by commas, to keep for a persistent ban"
+            );
+            _banList = Banlist.Value;
+            ParseBanListFromConfig();
+#if DEBUG
+                Debug.Log($"DEBUG_VOTECOMMANDS: Banlist loaded. Banned SteamIDs: {_banList}");
+#endif
             StartHooks();
         }
 
@@ -30,6 +46,25 @@ namespace VoteCommands
         {
             On.RoR2.Console.RunCmd += ChatStartVote;
             On.RoR2.NetworkUser.UpdateUserName += CheckSteamID;
+        }
+
+        // Borrowed from DebugToolkit
+        private void ParseBanListFromConfig()
+        {
+            var bannedSteamIds = _banList.Split(',').Select(s => s.Trim()).ToList();
+
+            KickedPlayerSteamIds.Clear();
+            foreach (var steamId in bannedSteamIds)
+            {
+                if (ulong.TryParse(steamId, out var steamIdULong))
+                {
+                    KickedPlayerSteamIds.Add(steamIdULong);
+                }
+                else
+                {
+                    Debug.Log($"Can't parse STEAMID64 - ${steamId}");
+                }
+            }
         }
 
         private void ChatStartVote(On.RoR2.Console.orig_RunCmd orig, RoR2.Console self, RoR2.Console.CmdSender sender, string concommandName, List<string> userArgs)
@@ -48,7 +83,11 @@ namespace VoteCommands
                 {
                     CountUserVote(sender.networkUser);
                 }
-                else if (chatCommand.Equals("vote_kick", StringComparison.InvariantCultureIgnoreCase) || chatCommand.Equals("votekick", StringComparison.InvariantCultureIgnoreCase))
+                else if (chatCommand.Equals("vote_kick", StringComparison.InvariantCultureIgnoreCase) || 
+                    chatCommand.Equals("votekick", StringComparison.InvariantCultureIgnoreCase) ||
+                    chatCommand.Equals("/vote_kick", StringComparison.InvariantCultureIgnoreCase) ||
+                    chatCommand.Equals("/votekick", StringComparison.InvariantCultureIgnoreCase)
+                    )
                 {
                     if (_voteInProgress)
                     {
@@ -71,7 +110,11 @@ namespace VoteCommands
                     if (kickUserNetworkUser == null) { return; }  // There is a nicer way to do this, just have to learn about it. I think it's that whole ?? thing
                     StartCoroutine(WaitForVotesKick(sender, kickUserNetworkUser));
                 }
-                else if (chatCommand.Equals("vote_restart", StringComparison.InvariantCultureIgnoreCase) || chatCommand.Equals("voterestart", StringComparison.InvariantCultureIgnoreCase))
+                else if (chatCommand.Equals("vote_restart", StringComparison.InvariantCultureIgnoreCase) || 
+                    chatCommand.Equals("voterestart", StringComparison.InvariantCultureIgnoreCase) ||
+                    chatCommand.Equals("/vote_restart", StringComparison.InvariantCultureIgnoreCase) ||
+                    chatCommand.Equals("/voterestart", StringComparison.InvariantCultureIgnoreCase)
+                    )
                 {
                     if (_voteInProgress)
                     {
@@ -82,6 +125,22 @@ namespace VoteCommands
                         return;
                     }
                     StartCoroutine(WaitForVotesRestart(sender));
+                }
+                else if (chatCommand.Equals("vote_next", StringComparison.InvariantCultureIgnoreCase) ||
+                    chatCommand.Equals("votenext", StringComparison.InvariantCultureIgnoreCase) ||
+                    chatCommand.Equals("/vote_next", StringComparison.InvariantCultureIgnoreCase) ||
+                    chatCommand.Equals("/votenext", StringComparison.InvariantCultureIgnoreCase)
+                    )
+                {
+                    if (_voteInProgress)
+                    {
+                        Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                        {
+                            baseToken = "<color=red>Hold your horses. There's already a vote in progress.</color>"
+                        });
+                        return;
+                    }
+                    StartCoroutine(WaitForVotesNext(sender));
                 }
             }
         }
@@ -109,7 +168,7 @@ namespace VoteCommands
             catch
             {
 #if DEBUG
-                Debug.Log("DEBUG_VOTEKICK: There was a problem kicking this person. I can't into exception handling");
+                Debug.Log("DEBUG_VOTECOMMANDS: There was a problem kicking this person. I can't into exception handling");
 #endif
             }
         }
@@ -144,7 +203,7 @@ namespace VoteCommands
                     baseToken = "<color=red>Vote to kick " + kickUserNetworkUser.userName + " has passed. Bye bye.</color>"
                 });
 #if DEBUG
-                Debug.Log("DEBUG_VOTEKICK: Vote to kick " + kickUserNetworkUser.userName + " has passed.");  // DEBUG
+                Debug.Log("DEBUG_VOTECOMMANDS: Vote to kick " + kickUserNetworkUser.userName + " has passed.");  // DEBUG
 #endif
                 CustomKick(kickUserNetworkUser);
             }
@@ -155,7 +214,7 @@ namespace VoteCommands
                     baseToken = "<color=red>Vote to kick " + kickUserNetworkUser.userName + " has failed.</color>"
                 });
 #if DEBUG
-                Debug.Log("DEBUG_VOTEKICK: Vote to kick " + kickUserNetworkUser.userName + " has failed.");  // DEBUG
+                Debug.Log("DEBUG_VOTECOMMANDS: Vote to kick " + kickUserNetworkUser.userName + " has failed.");  // DEBUG
 #endif
                 KickedPlayerSteamIds.Remove(kickUserSteamId);  // Replaces RemoveIdFromKickListSteam(), reducing repeat code and not crashing by referencing the existing variable
             }
@@ -212,6 +271,81 @@ namespace VoteCommands
                 });
 #if DEBUG
                 Debug.Log("DEBUG_VOTERESTART: Vote to restart has failed.");  // DEBUG
+#endif
+            }
+            _voteInProgress = false;
+            VotedForPlayers.Clear();
+        }
+
+        // TODO: Merge this function with WaitForVotesKick, just only accept kickuser args under the circumstance that the votekick command is passed
+        // Requires DebugToolkit for next_stage command
+        // Doesn't yet consider if the team is dead when the vote passes, would result in some weirdness at the moment
+        private IEnumerator WaitForVotesNext(RoR2.Console.CmdSender sender)
+        {
+            var currentSceneName = SceneManager.GetActiveScene().name;
+            if (!Run.instance)
+            {
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>You can't start a vote to advance the stage when there is no run to advance, silly goose.</color>"
+                });
+                yield break;
+            }
+            else if (currentSceneName == "moon" || currentSceneName == "moon2" || currentSceneName == "outro" || currentSceneName == "mysteryspace" || currentSceneName == "limbo") // Makes sure this doesn't work on final stages
+            {
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>You can't vote to advance the stage right now.</color>"
+                });
+                yield break;
+            }
+            Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+            {
+                baseToken = "<color=red>Vote to advance the stage has begun. In the next 45 seconds, Type 'Y' to vote.</color>"
+            });
+            CountUserVote(sender.networkUser);
+            int playerCount = NetworkUser.readOnlyInstancesList.Count;
+            _voteInProgress = true;
+            yield return new WaitForSeconds(15f);
+            Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+            {
+                baseToken = "<color=red>30 seconds remaining in vote to advance the stage.</color>"
+            });
+            yield return new WaitForSeconds(20f);
+            Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+            {
+                baseToken = "<color=red>10 seconds remaining in vote to advance the stage.</color>"
+            });
+            yield return new WaitForSeconds(10f);
+            if (VotedForPlayers.Count > (int)(playerCount * 0.51f))
+            {
+                var postvoteSceneName = SceneManager.GetActiveScene().name;
+                if (!Run.instance || Run.instance.livingPlayerCount == 0 || postvoteSceneName == "moon" || postvoteSceneName == "moon2" || postvoteSceneName == "outro" || postvoteSceneName == "mysteryspace" || postvoteSceneName == "limbo") // Makes sure this doesn't work on final stages
+                {
+                    Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                    {
+                        baseToken = "<color=red>The vote passed, but the stage can't be advanced right now.</color>"
+                    });
+                    yield break;
+                }
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>Vote to advance the stage has passed. On to the next one...</color>"
+                });
+#if DEBUG
+                Debug.Log("DEBUG_VOTERESTART: Vote to advance the stage has passed.");  // DEBUG
+#endif
+                yield return new WaitForSeconds(3f);
+                RoR2.Console.instance.SubmitCmd(new RoR2.Console.CmdSender(), "next_stage");
+            }
+            else
+            {
+                Chat.SendBroadcastChat(new Chat.SimpleChatMessage
+                {
+                    baseToken = "<color=red>Vote to advance the stage has failed.</color>"
+                });
+#if DEBUG
+                Debug.Log("DEBUG_VOTERESTART: Vote to advance the stage has failed.");  // DEBUG
 #endif
             }
             _voteInProgress = false;
@@ -295,14 +429,14 @@ namespace VoteCommands
                 else
                 {
 #if DEBUG
-                    Debug.Log("DEBUG_VOTEKICK: Couldn't find the connection associated with the user.");
+                    Debug.Log("DEBUG_VOTECOMMANDS: Couldn't find the connection associated with the user.");
 #endif
                 }
             }
             catch
             {
 #if DEBUG
-                Debug.Log("DEBUG_VOTEKICK: Player not found.");
+                Debug.Log("DEBUG_VOTECOMMANDS: Player not found.");
 #endif
             }
         }
