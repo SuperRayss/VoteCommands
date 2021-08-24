@@ -14,7 +14,7 @@ namespace VoteCommands
 {
     [BepInDependency("com.bepis.r2api")]
     [NetworkCompatibility(CompatibilityLevel.NoNeedForSync)]
-    [BepInPlugin("com.Rayss.VoteCommands", "VoteCommands", "1.4.0")]
+    [BepInPlugin("com.Rayss.VoteCommands", "VoteCommands", "1.4.1")]
     public class VoteCommands : BaseUnityPlugin
     {
         // Config
@@ -278,7 +278,6 @@ namespace VoteCommands
         }
 
         // TODO: Merge this function with WaitForVotesKick, just only accept kickuser args under the circumstance that the votekick command is passed
-        // Requires DebugToolkit for next_stage command
         // Doesn't yet consider if the team is dead when the vote passes, would result in some weirdness at the moment
         private IEnumerator WaitForVotesNext(RoR2.Console.CmdSender sender)
         {
@@ -336,7 +335,7 @@ namespace VoteCommands
                 Debug.Log("DEBUG_VOTERESTART: Vote to advance the stage has passed.");  // DEBUG
 #endif
                 yield return new WaitForSeconds(3f);
-                RoR2.Console.instance.SubmitCmd(new RoR2.Console.CmdSender(), "next_stage");
+                NextStage();
             }
             else
             {
@@ -350,6 +349,13 @@ namespace VoteCommands
             }
             _voteInProgress = false;
             VotedForPlayers.Clear();
+        }
+
+        // Borrowed from DebugToolkit
+        private void NextStage()
+        {
+            Run.instance.AdvanceStage(Run.instance.nextStageScene);
+            return;
         }
 
         private void CountUserVote(NetworkUser netUser)
