@@ -14,7 +14,7 @@ namespace VoteCommands
 {
     [BepInDependency("com.bepis.r2api")]
     [NetworkCompatibility(CompatibilityLevel.NoNeedForSync)]
-    [BepInPlugin("com.Rayss.VoteCommands", "VoteCommands", "1.4.1")]
+    [BepInPlugin("com.Rayss.VoteCommands", "VoteCommands", "1.5.0")]
     public class VoteCommands : BaseUnityPlugin
     {
         // Config
@@ -148,7 +148,7 @@ namespace VoteCommands
         private void CheckSteamID(On.RoR2.NetworkUser.orig_UpdateUserName orig, NetworkUser self)
         {
             orig(self);
-            ulong steamId = self.id.steamId.value;
+            ulong steamId = self.id.steamId.steamValue;
             if (KickedPlayerSteamIds.Contains(steamId))
             {
                 StartCoroutine(WaitToKick(self));
@@ -160,10 +160,10 @@ namespace VoteCommands
         {
             yield return new WaitForSeconds(0.5f);
             NetworkConnection kickUserConn = FindNetworkConnectionFromNetworkUser(kickUser);
-            var kickReason = new RoR2.Networking.GameNetworkManager.SimpleLocalizedKickReason("KICK_REASON_KICK", Array.Empty<string>());
+            var kickReason = new RoR2.Networking.NetworkManagerSystem.SimpleLocalizedKickReason("KICK_REASON_KICK", Array.Empty<string>());
             try
             {
-                RoR2.Networking.GameNetworkManager.singleton.ServerKickClient(kickUserConn, kickReason);
+                RoR2.Networking.NetworkManagerSystem.singleton.ServerKickClient(kickUserConn, kickReason);
             }
             catch
             {
@@ -176,7 +176,7 @@ namespace VoteCommands
         // TODO: Change system to count down from number of votes needed, if that number is hit before the timer runs out
         private IEnumerator WaitForVotesKick(RoR2.Console.CmdSender sender, NetworkUser kickUserNetworkUser)
         {
-            var kickUserSteamId = kickUserNetworkUser.id.steamId.value;
+            var kickUserSteamId = kickUserNetworkUser.id.steamId.steamValue;
             KickedPlayerSteamIds.Add(kickUserSteamId);  // Replaces AddIdToKickListSteam(), reducing repeat code
             Chat.SendBroadcastChat(new Chat.SimpleChatMessage
             {
@@ -429,8 +429,8 @@ namespace VoteCommands
                 }
                 if (client != null)
                 {
-                    var reason = new RoR2.Networking.GameNetworkManager.SimpleLocalizedKickReason("KICK_REASON_KICK");
-                    RoR2.Networking.GameNetworkManager.singleton.InvokeMethod("ServerKickClient", client, reason);
+                    var reason = new RoR2.Networking.NetworkManagerSystem.SimpleLocalizedKickReason("KICK_REASON_KICK");
+                    RoR2.Networking.NetworkManagerSystem.singleton.InvokeMethod("ServerKickClient", client, reason);
                 }
                 else
                 {
